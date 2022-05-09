@@ -7,6 +7,7 @@ export type WebhookRequest =
 export type IValue = protos.google.protobuf.IValue
 
 export enum WebhookResponseRichContextTypes {
+  text = 'text',
   button = 'button',
   image = 'image',
   info = 'info',

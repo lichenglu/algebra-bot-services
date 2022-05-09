@@ -132,17 +132,21 @@ export class AgentController {
                   res.data?.solveSteps?.length > 0
                     ? {
                         type: WebhookResponseRichContextTypes.description,
-                        title: 'More info',
-                        text: [
+                        title: 'Helpful Info for Solving',
+                        items: [
                           ...res.data.solveSteps.map(
-                            (step, idx) =>
-                              `\n${idx + 1}): ${step.step} Then you changed ${
+                            (step, idx) => ({
+                              title: `\n${idx + 1}): ${step.step}`,
+                              description: `${idx === 0 ? '' : `Then you changed ${
                                 step.prevExpression
-                              } to ${step.expression}`,
+                              } to ${step.expression}`}`
+                            }),
                           ),
-                          res.data.relatedConcepts.length > 0
+                          {
+                            title: res.data.relatedConcepts.length > 0
                             ? '\nI have also found related concepts for you:'
-                            : '',
+                            : ''
+                          }
                         ],
                       }
                     : null,
@@ -163,7 +167,7 @@ export class AgentController {
                 ],
                 [
                   {
-                    type: WebhookResponseRichContextTypes.info,
+                    type: WebhookResponseRichContextTypes.text,
                     title:
                       'Meanwhile, I can also recommend videos and practice problems to help with your learning. Do you want them?',
                   },
@@ -237,28 +241,37 @@ export class AgentController {
           {
             payload: {
               richContent: [
-                ...solvedData.relatedVideos.slice(0, 3).map((vid) => {
-                  const thumbnail = Array.isArray(vid.thumbnail) ? vid.thumbnail[0] : vid.thumbnail
-                  return [
-                    {
-                      type: WebhookResponseRichContextTypes.info,
-                      rawUrl: thumbnail?.thumbnailUrl,
-                      title: `Video: ${vid.name}`,
-                      subtitle: vid.description,
-                      actionLink: vid.url,
-                    },
-                  ];
-                }),
-                ...solvedData.relatedProblems.slice(0, 3).map((prob) => {
-                  return [
-                    {
-                      type: WebhookResponseRichContextTypes.info,
-                      title: `Pratice: ${prob.title}`,
-                      subtitle: prob.snippet,
-                      actionLink: prob.url,
-                    },
-                  ];
-                }),
+                [
+                  {
+                    type: WebhookResponseRichContextTypes.info,
+                    text: "Video Recommendation",
+                    items: solvedData.relatedVideos.slice(0, 3).map((vid) => {
+                      const thumbnail = Array.isArray(vid.thumbnail) ? vid.thumbnail[0] : vid.thumbnail
+                      return {
+                          type: WebhookResponseRichContextTypes.info,
+                          rawUrl: thumbnail?.thumbnailUrl,
+                          title: `Video: ${vid.name}`,
+                          subtitle: vid.description,
+                          actionLink: vid.url,
+                      }
+                      ;
+                    })
+                  }
+                ],
+                [
+                  {
+                    type: WebhookResponseRichContextTypes.info,
+                    text: "Problem Recommendation",
+                    items: solvedData.relatedProblems.slice(0, 3).map((prob) => {
+                      return {
+                          type: WebhookResponseRichContextTypes.info,
+                          title: `Pratice: ${prob.title}`,
+                          subtitle: prob.snippet,
+                          actionLink: prob.url
+                        };
+                    })
+                  }
+                ],
               ],
             },
           },

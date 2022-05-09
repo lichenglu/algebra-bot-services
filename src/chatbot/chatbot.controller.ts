@@ -19,7 +19,7 @@ export class ChatbotController {
         query: body.message,
         // TODO: Change this to user id
         // sessionId: Math.random().toString(36).substring(7),
-        sessionId: '1234',
+        sessionId: '12abc1a23',
     })
 
     return res

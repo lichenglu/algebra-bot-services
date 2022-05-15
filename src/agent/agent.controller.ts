@@ -52,7 +52,7 @@ export class AgentController {
     const response = await this.agentService.openai.createCompletion("text-davinci-002", {
       prompt,
       temperature: 0.7,
-      max_tokens: 128,
+      max_tokens: 64,
       top_p: 1.0,
       frequency_penalty: 0.0,
       presence_penalty: 0.0,
@@ -60,7 +60,14 @@ export class AgentController {
 
     response.data.choices.map(c => console.log(c))
 
-    return this.agentService.insertText(response.data.choices[0]?.text ?? "Failed").getRes()
+    const summary = response.data.choices[0]?.text ?? null
+    
+    return this.agentService
+      .insertText(summary)
+      .insertParamInfo({
+        summary
+      })
+      .getRes()
   }
 
   @Post('clearParams')

@@ -51,3 +51,16 @@ export interface WebhookResponse {
   /** WebhookResponse targetFlow */
   targetFlow?: string | null;
 }
+
+export enum HelpSeekingModes {
+  solve = 'solve',
+  recommend = 'recommend',
+  summarize = 'summarize',
+  correct = 'correct'
+}
+
+export enum HelpSeekingParams {
+  helpSeekingMode = 'help_seeking_mode',
+  latexEquation = 'latex_equation',
+  passageForSummarization = 'passage'
+}

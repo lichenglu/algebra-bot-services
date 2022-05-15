@@ -6,17 +6,21 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { initService, SolvedResult } from 'ms_math_solver_api';
+import { Configuration, OpenAIApi } from 'openai'
 
 import {
   WebhookRequest,
   WebhookResponse,
   WebhookResponseRichContextTypes,
-  IValue,
+  HelpSeekingModes,
+  HelpSeekingParams
 } from 'src/types';
 import { getStaticImageURL } from 'src/utils';
+import { AgentService } from './agent.service';
 
 @Controller('agent')
 export class AgentController {
+  constructor(private agentService: AgentService) {}
 
   // @Post('openAIGenerate')
   // async openAIGenerate(@Body() body: WebhookRequest): Promise<WebhookResponse> {
@@ -24,55 +28,125 @@ export class AgentController {
   //   const helpSeekingMode = body.text;
   // }
 
+  @Post('openAISummarize')
+  async openAISummarize(@Body() body: WebhookRequest): Promise<WebhookResponse> {
+    let prompt = "Summarize this for a second-grade student:"
+    const passageForSummarization = body.sessionInfo.parameters.passage as string | undefined;
+    
+    if (!passageForSummarization) {
+      throw new HttpException(
+        'Make sure you have passed a passage for summarization',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    
+    const match = passageForSummarization.match(/\{\{(.+)\}\}/)
+    if (!match) {
+      throw new HttpException(
+        'Make sure the passage has been wrapped with {{}}',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    prompt = `${passageForSummarization}\n\n${match[1]}`
+    const response = await this.agentService.openai.createCompletion("text-davinci-002", {
+      prompt,
+      temperature: 0.7,
+      max_tokens: 128,
+      top_p: 1.0,
+      frequency_penalty: 0.0,
+      presence_penalty: 0.0,
+    });
+
+    response.data.choices.map(c => console.log(c))
+
+    return this.agentService.insertText(response.data.choices[0]?.text ?? "Failed").getRes()
+  }
+
+  @Post('clearParams')
+  async clearParams(@Body() body: WebhookRequest): Promise<WebhookResponse> {
+    const tags = body.fulfillmentInfo.tag.split(',');
+
+    return this.agentService
+      .insertParamInfo(
+        tags.reduce((obj, tag) => {
+          obj[tag.trim()] = null;
+          return obj;
+        }, {}),
+      )
+      .getRes();
+  }
+
+  // it seems that entities in long texts cannot be recognized
+  @Post('extractParams')
+  async extractParams(@Body() body: WebhookRequest): Promise<WebhookResponse> {
+    const tag = body.fulfillmentInfo.tag
+    const query = body.text
+    let value = null;
+
+    if (tag === HelpSeekingParams.passageForSummarization) {
+      const match = query.match(/\{\{(.+)\}\}/)
+      if (match) {
+        value = match[0]
+      }
+    }
+
+    if (!value) {
+      return this.agentService.getRes()  
+    }
+
+    return this.agentService
+      .insertParamInfo({
+        [tag]: value
+      })
+      .getRes();
+  }
+
   @Post('confirmParams')
   async confirmParams(@Body() body: WebhookRequest): Promise<WebhookResponse> {
-    console.log('body', body)
     const helpSeekingMode = body.sessionInfo.parameters.help_seeking_mode;
     const latexEquation = body.sessionInfo.parameters.latex_equation;
+    const passageForSummarization = body.sessionInfo.parameters.passage as string | undefined;
     const tag = body.fulfillmentInfo.tag;
 
     if (tag === 'help_seeking') {
       let message = '';
 
-      if (helpSeekingMode === 'solve') {
+      if (helpSeekingMode === HelpSeekingModes.solve) {
         message = `You want to solve/simplify this equation ${latexEquation}.`;
-      } else if (helpSeekingMode === 'recommend') {
+      } else if (helpSeekingMode === HelpSeekingModes.recommend) {
         message = `You want to look for learning resources based on this equation ${latexEquation}.`;
+      } else if (
+        passageForSummarization &&
+        helpSeekingMode === HelpSeekingModes.summarize
+      ) {
+        message = `You want to summarize this ${passageForSummarization.slice(
+          0,
+          60,
+        )}`;
+        if (passageForSummarization.length >= 70) {
+          message += `...[Truncated for display]`;
+        }
       }
       message += ' Is that correct?';
 
-      const jsonResponse = {
-        fulfillmentResponse: {
-          messages: [
+      return this.agentService
+        .insertText(message)
+        .insertRichContent([
+          [
             {
-              text: {
-                //fulfillment text response to be sent to the agent
-                text: [message],
-              },
-            },
-            {
-              payload: {
-                richContent: [
-                  [
-                    {
-                      type: WebhookResponseRichContextTypes.button,
-                      text: 'Yes!',
-                    },
-                  ],
-                  [
-                    {
-                      type: WebhookResponseRichContextTypes.button,
-                      text: 'Nope...',
-                    },
-                  ],
-                ],
-              },
+              type: WebhookResponseRichContextTypes.button,
+              text: 'Yes!',
             },
           ],
-        },
-      };
-
-      return jsonResponse;
+          [
+            {
+              type: WebhookResponseRichContextTypes.button,
+              text: 'Nope...',
+            },
+          ],
+        ])
+        .getRes();
     }
 
     throw new HttpException(
@@ -94,13 +168,9 @@ export class AgentController {
     console.log('latexEquation', latexEquation);
 
     if (!latexEquation) {
-      return {
-        fulfillmentResponse: {
-          messages: [
-            { text: { text: ['Hmm...I might have forgotten your equation'] } },
-          ],
-        },
-      };
+      return this.agentService
+        .insertText('Hmm...I might have forgotten your equation')
+        .getRes();
     }
 
     const res = await mathSolverService.solveFor(
@@ -114,86 +184,7 @@ export class AgentController {
       );
     }
 
-    return {
-      fulfillmentResponse: {
-        messages: [
-          {
-            text: {
-              text: [
-                res.data?.answer?.solution &&
-                  `Alrighty! I got the solution now. The answer is: ${res.data.answer.solution}`,
-              ],
-            },
-          },
-          {
-            payload: {
-              richContent: [
-                [
-                  res.data?.solveSteps?.length > 0
-                    ? {
-                        type: WebhookResponseRichContextTypes.description,
-                        title: 'Helpful Info for Solving',
-                        items: [
-                          ...res.data.solveSteps.map(
-                            (step, idx) => ({
-                              title: `\n${idx + 1}): ${step.step}`,
-                              description: `${idx === 0 ? '' : `Then you changed ${
-                                step.prevExpression
-                              } to ${step.expression}`}`
-                            }),
-                          ),
-                          {
-                            title: res.data.relatedConcepts.length > 0
-                            ? '\nI have also found related concepts for you:'
-                            : ''
-                          }
-                        ],
-                      }
-                    : null,
-                  {
-                    type: WebhookResponseRichContextTypes.chips,
-                    options: res.data.relatedConcepts.map((cpt) => {
-                      return {
-                        text: cpt.name,
-                        link: cpt.url,
-                        image: {
-                          src: {
-                            rawUrl: `${getStaticImageURL('light-bulb.png')}`,
-                          },
-                        },
-                      };
-                    }),
-                  },
-                ],
-                [
-                  {
-                    type: WebhookResponseRichContextTypes.text,
-                    title:
-                      'Meanwhile, I can also recommend videos and practice problems to help with your learning. Do you want them?',
-                  },
-                  {
-                    type: WebhookResponseRichContextTypes.button,
-                    text: 'Yes, PLEASE!',
-                  },
-                  {
-                    type: WebhookResponseRichContextTypes.button,
-                    text: 'Nah...I am good',
-                  },
-                ],
-              ],
-            },
-          },
-        ],
-      },
-      sessionInfo: {
-        parameters: {
-          equationResource: {
-            relatedVideos: res.data.relatedVideos,
-            relatedProblems: res.data.relatedProblems,
-          } as IValue,
-        },
-      },
-    };
+    return this.agentService.getSolveInfo(res.data);
   }
 
   @Post('recommendResource')
@@ -207,7 +198,8 @@ export class AgentController {
     });
     // only videos and problems
     // @ts-ignore
-    let solvedData = (body.sessionInfo.parameters.equationResource as Partial<SolvedResult>);
+    let solvedData = body.sessionInfo.parameters
+      .equationResource as Partial<SolvedResult>;
     const latexEquation = body.sessionInfo.parameters.latex_equation as string;
 
     if (!solvedData && !latexEquation) {
@@ -221,7 +213,7 @@ export class AgentController {
       const res = await mathSolverService.solveFor(
         latexEquation.replace(/\$/g, ''),
       );
-  
+
       if (!res.ok) {
         throw new HttpException(
           'Failed to solve equation from MS Math Solver',
@@ -232,52 +224,10 @@ export class AgentController {
       solvedData = {
         relatedVideos: res.data.relatedVideos,
         relatedProblems: res.data.relatedProblems,
-      }
+      };
     }
 
-    return {
-      fulfillmentResponse: {
-        messages: [
-          {
-            payload: {
-              richContent: [
-                [
-                  {
-                    type: WebhookResponseRichContextTypes.info,
-                    text: "Video Recommendation",
-                    items: solvedData.relatedVideos.slice(0, 3).map((vid) => {
-                      const thumbnail = Array.isArray(vid.thumbnail) ? vid.thumbnail[0] : vid.thumbnail
-                      return {
-                          type: WebhookResponseRichContextTypes.info,
-                          rawUrl: thumbnail?.thumbnailUrl,
-                          title: `Video: ${vid.name}`,
-                          subtitle: vid.description,
-                          actionLink: vid.url,
-                      }
-                      ;
-                    })
-                  }
-                ],
-                [
-                  {
-                    type: WebhookResponseRichContextTypes.info,
-                    text: "Problem Recommendation",
-                    items: solvedData.relatedProblems.slice(0, 3).map((prob) => {
-                      return {
-                          type: WebhookResponseRichContextTypes.info,
-                          title: `Pratice: ${prob.title}`,
-                          subtitle: prob.snippet,
-                          actionLink: prob.url
-                        };
-                    })
-                  }
-                ],
-              ],
-            },
-          },
-        ],
-      },
-    };
+    return this.agentService.getResourceRecommendation(solvedData);
   }
 
   @Post('promptHelpSeekingHint')
@@ -285,59 +235,11 @@ export class AgentController {
     @Body() body: WebhookRequest,
   ): Promise<WebhookResponse> {
     const helpSeekingMode = body.sessionInfo?.parameters?.help_seeking_mode;
+    console.log('helpSeekingMode', helpSeekingMode);
     if (!helpSeekingMode) {
-      return {
-        fulfillmentResponse: {
-          messages: [
-            {
-              payload: {
-                richContent: [
-                  [
-                    {
-                      event: {
-                        languageCode: '',
-                        parameters: {
-                          'help_seeking.mode': 'solve',
-                        },
-                        name: '',
-                      },
-                      icon: {
-                        color: '#FF9800',
-                        type: 'chevron_right',
-                      },
-                      type: WebhookResponseRichContextTypes.button,
-                      text: 'Solve/simplify an equation!',
-                    },
-                  ],
-                  [
-                    {
-                      text: 'Recommend some learning resources',
-                      event: {
-                        parameters: {
-                          'help_seeking.mode': 'recommend',
-                        },
-                        languageCode: '',
-                        name: '',
-                      },
-                      type: WebhookResponseRichContextTypes.button,
-                      icon: {
-                        color: '#FF9800',
-                        type: 'chevron_right',
-                      },
-                    },
-                  ],
-                ],
-              },
-            },
-          ],
-        },
-      };
+      return this.agentService.getHelpSeekingPrompt();
     }
 
-    return {
-      fulfillmentResponse: {
-        messages: [],
-      },
-    };
+    return this.agentService.getRes();
   }
 }

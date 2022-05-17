@@ -52,6 +52,10 @@ export interface WebhookResponse {
   targetFlow?: string | null;
 }
 
+export enum DialogflowCustomEvents {
+  endSession = 'custom.end_session'
+}
+
 export enum HelpSeekingModes {
   solve = 'solve',
   recommend = 'recommend',

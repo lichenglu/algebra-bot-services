@@ -25,10 +25,12 @@ export class ChatbotService {
     sessionId,
     query,
     languageCode = 'en',
+    event
   }: {
     sessionId: string;
     query: string;
     languageCode?: string;
+    event?: string
   }) {
     const sessionPath = this.getSessionPath(sessionId);
 
@@ -41,6 +43,13 @@ export class ChatbotService {
         languageCode,
       },
     };
+
+    if (event) {
+      // @ts-ignore
+      request.queryInput.event = {
+        event
+      }
+    }
 
     const [response] = await this.sessionsClient.detectIntent(request);
 

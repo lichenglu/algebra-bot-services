@@ -16,3 +16,6 @@ export const CHEER_UP_PLACEHOLDERS: { text: string, image: string }[] = [
         image: 'https://media4.giphy.com/media/3o7TKUlP4zQwRkcUN2/giphy.gif?cid=ecf05e4714dqrrd20xpqvskrmk5y3dzvn3el3av28vqmie35&rid=giphy.gif&ct=g'
     },
 ]
+
+export const OPEN_AI_CHAT_FREEZE_TIME_IN_SECONDS = 300
+export const OPEN_AI_CHAT_FREEZE_COUNT = 5

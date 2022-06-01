@@ -27,6 +27,7 @@
     "@nestjs/core": "^8.0.0",
     "@nestjs/platform-express": "^8.0.0",
     "@nestjs/serve-static": "^2.2.2",
+    "dayjs": "^1.11.2",
     "mathjs": "^10.5.1",
     "mathsteps": "^0.2.0",
     "morgan": "^1.10.0",

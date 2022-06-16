@@ -1,6 +1,7 @@
 import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ServeStaticModule } from '@nestjs/serve-static';
+import { HttpModule } from '@nestjs/axios';
 import { join } from 'path';
 
 import { AppController } from './app.controller';
@@ -22,6 +23,7 @@ import { SafetyMiddleware } from './middlewares/safety.middleware'
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'public'),
     }),
+    HttpModule
   ],
   controllers: [AppController, MathSolverController, AgentController, ChatbotController],
   providers: [AppService, AgentService, ChatbotService],

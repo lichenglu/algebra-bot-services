@@ -15,6 +15,7 @@ export enum WebhookResponseRichContextTypes {
   list = 'list',
   accordion = 'accordion',
   chips = 'chips',
+  search = 'search',
 }
 
 // https://cloud.google.com/dialogflow/cx/docs/concept/integration/dialogflow-messenger#fulfillment
@@ -59,6 +60,7 @@ export enum DialogflowCustomEvents {
 export enum HelpSeekingModes {
   solve = 'solve',
   recommend = 'recommend',
+  search = 'search',
   summarize = 'summarize',
   correct = 'correct'
 }
@@ -67,4 +69,14 @@ export enum HelpSeekingParams {
   helpSeekingMode = 'help_seeking_mode',
   latexEquation = 'latex_equation',
   passageForSummarization = 'passage'
+}
+
+export interface PineconeSearchResponse {
+  results: any[],
+  matches: {
+    id: string,
+    score: number,
+    values: number[],
+    metadata: object
+  }[]
 }

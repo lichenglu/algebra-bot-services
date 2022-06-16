@@ -77,6 +77,10 @@ export class ChatbotService {
   }
 
   validateOpenAICall(userID: string) {
+    if (!userID) {
+      return false
+    }
+    
     if (
       ChatbotService.userDataMap[userID].openAIUsage.count >=
       OPEN_AI_CHAT_FREEZE_COUNT

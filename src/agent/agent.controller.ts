@@ -4,9 +4,13 @@ import {
   Body,
   HttpException,
   HttpStatus,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express'
+import { HttpService } from '@nestjs/axios'
 import { initService, SolvedResult } from 'ms_math_solver_api';
 import dayjs from 'dayjs';
+import { tap, retry } from 'rxjs/operators';
 
 import {
   WebhookRequest,
@@ -14,6 +18,7 @@ import {
   WebhookResponseRichContextTypes,
   HelpSeekingModes,
   HelpSeekingParams,
+  PineconeSearchResponse
 } from 'src/types';
 import { getStaticImageURL } from 'src/utils';
 import { OPEN_AI_CHAT_FREEZE_TIME_IN_SECONDS } from 'src/constants';
@@ -25,7 +30,68 @@ export class AgentController {
   constructor(
     private agentService: AgentService,
     private chatbotService: ChatbotService,
+    private httpService: HttpService
   ) {}
+
+  @Post('searchANVideos')
+  async searchANVideos(@Body() body: WebhookRequest): Promise<WebhookResponse> {
+    const prompt = body.text;
+    const HF_API_TOKEN = process.env.HUGGINGFACE_API_KEY;
+    const model = "flax-sentence-embeddings/all_datasets_v3_mpnet-base"
+    
+    const encodingResponse = await this.httpService.post<number[][]>(
+      // https://discuss.huggingface.co/t/can-one-get-an-embeddings-from-an-inference-api-that-computes-sentence-similarity/9433
+      `https://api-inference.huggingface.co/pipeline/feature-extraction/${model}`,
+      { 
+        inputs: [prompt],
+        options: {
+          wait_for_model: true
+        }
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${HF_API_TOKEN}`
+        }, 
+      }
+    )
+      .pipe(
+        tap({ error: err => console.log('error: ', err.message) }),
+        retry({
+          count: 2,
+          delay: 1000 * 10
+        }),
+      )
+      .toPromise()
+
+    const response = await this.httpService.post<PineconeSearchResponse>(
+      ` https://keyword-search-39d8ed5.svc.us-west1-gcp.pinecone.io/query`,
+      { 
+        vector: encodingResponse.data[0],
+        topK: 5,
+        includeMetadata: true,
+        includeValues: false,
+        namespace: ""
+      },
+      {
+        headers: {
+          "Api-Key": process.env.PINECONE_API_KEY
+        }, 
+      }
+    ).toPromise()
+
+    // @ts-ignore
+    return this.agentService
+      .insertText('You might find the following videos in Algebra Nation useful!')
+      .insertRichContent([
+        [
+          {
+            type: WebhookResponseRichContextTypes.search,
+            options: response.data.matches
+          }
+        ]
+      ])
+      .getRes();
+  }
 
   @Post('openAIGenerate')
   async openAIGenerate(@Body() body: WebhookRequest): Promise<WebhookResponse> {
@@ -65,10 +131,10 @@ export class AgentController {
     }
 
     const userProfile = {
-      careerGoal: ['software engineer'],
+      careerGoal: ['Any job'],
       musicGenre: ['Blues', 'Funk', 'Groovy'],
       favoirteSingers: ['John Mayer', 'Stevie Wonder'],
-      favoriteHolidays: ['Memorial day'],
+      favoriteHolidays: ['Chinese New Year'],
       favoriteBooks: ['Alice in Wonderland'],
       favoriteSubjects: ['math'],
     };
@@ -236,6 +302,7 @@ export class AgentController {
           message += `...[Truncated for display]`;
         }
       }
+
       message += ' Is that correct?';
 
       return this.agentService
@@ -297,7 +364,7 @@ export class AgentController {
 
   @Post('recommendResource')
   async recommendResource(
-    @Body() body: WebhookRequest,
+    @Body() body: WebhookRequest
   ): Promise<WebhookResponse> {
     const mathSolverService = initService({
       youtubeAPIKey: process.env.YOUTUBE_DATA_API_KEY,

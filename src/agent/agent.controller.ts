@@ -35,6 +35,14 @@ export class AgentController {
 
   @Post('searchANVideos')
   async searchANVideos(@Body() body: WebhookRequest): Promise<WebhookResponse> {
+    const userID = body.sessionInfo.parameters.userID as string | undefined;
+    ChatbotService.partialResponseEmitter?.next({ 
+      data: {
+        response: this.agentService.insertText('Great! Working on it. This can take some time').getFullRes(),
+        userID
+      }
+    })
+
     const prompt = body.text;
     const HF_API_TOKEN = process.env.HUGGINGFACE_API_KEY;
     const model = "flax-sentence-embeddings/all_datasets_v3_mpnet-base"
@@ -54,17 +62,17 @@ export class AgentController {
         }, 
       }
     )
-      .pipe(
-        tap({ error: err => console.log('error: ', err.message) }),
-        retry({
-          count: 2,
-          delay: 1000 * 10
-        }),
-      )
+      // .pipe(
+      //   tap({ error: err => console.log('error: ', err.message) }),
+      //   retry({
+      //     count: 2,
+      //     delay: 1000 * 10
+      //   }),
+      // )
       .toPromise()
 
     const response = await this.httpService.post<PineconeSearchResponse>(
-      ` https://keyword-search-39d8ed5.svc.us-west1-gcp.pinecone.io/query`,
+      `https://keyword-search-39d8ed5.svc.us-west1-gcp.pinecone.io/query`,
       { 
         vector: encodingResponse.data[0],
         topK: 5,
@@ -81,7 +89,7 @@ export class AgentController {
 
     // @ts-ignore
     return this.agentService
-      .insertText('You might find the following videos in Algebra Nation useful!')
+      .insertText('You might find the following videos in Math Nation useful!')
       .insertRichContent([
         [
           {
@@ -238,14 +246,17 @@ export class AgentController {
   @Post('clearParams')
   async clearParams(@Body() body: WebhookRequest): Promise<WebhookResponse> {
     const tags = body.fulfillmentInfo.tag.split(',');
+    const currentParams = body.sessionInfo.parameters
 
+    const newParams = tags.reduce((obj, tag) => {
+      obj[tag.trim()] = null;
+      return obj;
+    }, currentParams ?? {})
+
+    console.log(newParams)
+    
     return this.agentService
-      .insertParamInfo(
-        tags.reduce((obj, tag) => {
-          obj[tag.trim()] = null;
-          return obj;
-        }, {}),
-      )
+      .insertParamInfo(newParams)
       .getRes();
   }
 
@@ -332,6 +343,14 @@ export class AgentController {
 
   @Post('solveProblem')
   async solve(@Body() body: WebhookRequest): Promise<WebhookResponse> {
+    const userID = body.sessionInfo.parameters.userID as string | undefined;
+    ChatbotService.partialResponseEmitter?.next({ 
+      data: {
+        response: this.agentService.insertText('Great! Working on it. This can take several seconds').getFullRes(),
+        userID
+      }
+    })
+
     const mathSolverService = initService({
       youtubeAPIKey: process.env.YOUTUBE_DATA_API_KEY,
       fallbackToYoutubeVideos:
@@ -366,6 +385,15 @@ export class AgentController {
   async recommendResource(
     @Body() body: WebhookRequest
   ): Promise<WebhookResponse> {
+    const userID = body.sessionInfo.parameters.userID as string | undefined;
+
+    ChatbotService.partialResponseEmitter?.next({ 
+      data: {
+        response: this.agentService.insertText('Processing! This can take some time').getFullRes(),
+        userID
+      }
+    })
+
     const mathSolverService = initService({
       youtubeAPIKey: process.env.YOUTUBE_DATA_API_KEY,
       fallbackToYoutubeVideos:

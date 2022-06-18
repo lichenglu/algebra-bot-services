@@ -26,8 +26,20 @@ export class AgentService {
     this.openai = new OpenAIApi(this.configuration);
   }
 
+  // webhook
   getRes() {
     return clone(this.res);
+  }
+
+  // direct response for chatbot
+  getFullRes() {
+    return {
+      queryResult: {
+        responseMessages: [
+          ...this.getRes().fulfillmentResponse.messages
+        ]
+      }
+    }
   }
 
   setRes(res: WebhookResponse): AgentService {

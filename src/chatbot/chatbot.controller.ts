@@ -2,9 +2,12 @@ import {
   Controller,
   Post,
   Body,
+  Sse,
+  MessageEvent,
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
+import { Observable, Subject, map } from 'rxjs' 
 
 import { ChatbotService } from './chatbot.service';
 import { DialogflowCustomEvents } from 'src/types';
@@ -25,5 +28,12 @@ export class ChatbotController {
     })
 
     return res
+  }
+
+  @Sse('partialResponse')
+  sse(): Observable<MessageEvent> {
+    ChatbotService.partialResponseEmitter = new Subject()
+
+    return ChatbotService.partialResponseEmitter.asObservable();
   }
 }

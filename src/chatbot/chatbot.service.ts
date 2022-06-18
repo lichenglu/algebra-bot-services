@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, MessageEvent } from '@nestjs/common';
 import { SessionsClient, protos } from '@google-cloud/dialogflow-cx';
 import { struct } from 'pb-util';
 import dayjs from 'dayjs';
+import { Subject } from 'rxjs' 
 
 import {
   OPEN_AI_CHAT_FREEZE_TIME_IN_SECONDS,
@@ -27,6 +28,8 @@ export class ChatbotService {
       latestSource?: 'openai' | 'dialogflow';
     };
   } = {};
+
+  static partialResponseEmitter: Subject<MessageEvent>;
 
   sessionsClient: SessionsClient;
 

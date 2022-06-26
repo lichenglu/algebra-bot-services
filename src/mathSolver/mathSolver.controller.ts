@@ -26,6 +26,7 @@ export class MathSolverController {
     return {
       answer: res.data.answer,
       solveSteps: res.data.solveSteps,
+      altSolveSteps: res.data.alternativeSolveSteps,
       relatedConcepts: res.data.relatedConcepts,
       relatedProblems: res.data.relatedProblems,
       relatedVideos: res.data.relatedVideos,

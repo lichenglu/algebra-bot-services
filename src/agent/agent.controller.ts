@@ -6,8 +6,8 @@ import {
   HttpStatus,
   Res,
 } from '@nestjs/common';
-import { Response } from 'express'
-import { HttpService } from '@nestjs/axios'
+import { Response } from 'express';
+import { HttpService } from '@nestjs/axios';
 import { initService, SolvedResult } from 'ms_math_solver_api';
 import dayjs from 'dayjs';
 import { tap, retry } from 'rxjs/operators';
@@ -18,9 +18,10 @@ import {
   WebhookResponseRichContextTypes,
   HelpSeekingModes,
   HelpSeekingParams,
-  PineconeSearchResponse
+  PineconeSearchResponse,
 } from 'src/types';
 import { getStaticImageURL } from 'src/utils';
+import { FLOW_IDS, PAGE_IDS } from 'src/constants';
 import { OPEN_AI_CHAT_FREEZE_TIME_IN_SECONDS } from 'src/constants';
 import { AgentService } from './agent.service';
 import { ChatbotService } from 'src/chatbot/chatbot.service';
@@ -30,38 +31,41 @@ export class AgentController {
   constructor(
     private agentService: AgentService,
     private chatbotService: ChatbotService,
-    private httpService: HttpService
+    private httpService: HttpService,
   ) {}
 
   @Post('searchANVideos')
   async searchANVideos(@Body() body: WebhookRequest): Promise<WebhookResponse> {
     const userID = body.sessionInfo.parameters.userID as string | undefined;
-    ChatbotService.partialResponseEmitter?.next({ 
+    ChatbotService.partialResponseEmitter?.next({
       data: {
-        response: this.agentService.insertText('Great! Working on it. This can take some time').getFullRes(),
-        userID
-      }
-    })
+        response: this.agentService
+          .insertText('Great! Working on it. This can take some time')
+          .getFullRes(),
+        userID,
+      },
+    });
 
     const prompt = body.text;
     const HF_API_TOKEN = process.env.HUGGINGFACE_API_KEY;
-    const model = "flax-sentence-embeddings/all_datasets_v3_mpnet-base"
-    
-    const encodingResponse = await this.httpService.post<number[][]>(
-      // https://discuss.huggingface.co/t/can-one-get-an-embeddings-from-an-inference-api-that-computes-sentence-similarity/9433
-      `https://api-inference.huggingface.co/pipeline/feature-extraction/${model}`,
-      { 
-        inputs: [prompt],
-        options: {
-          wait_for_model: true
-        }
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${HF_API_TOKEN}`
-        }, 
-      }
-    )
+    const model = 'flax-sentence-embeddings/all_datasets_v3_mpnet-base';
+
+    const encodingResponse = await this.httpService
+      .post<number[][]>(
+        // https://discuss.huggingface.co/t/can-one-get-an-embeddings-from-an-inference-api-that-computes-sentence-similarity/9433
+        `https://api-inference.huggingface.co/pipeline/feature-extraction/${model}`,
+        {
+          inputs: [prompt],
+          options: {
+            wait_for_model: true,
+          },
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${HF_API_TOKEN}`,
+          },
+        },
+      )
       // .pipe(
       //   tap({ error: err => console.log('error: ', err.message) }),
       //   retry({
@@ -69,23 +73,25 @@ export class AgentController {
       //     delay: 1000 * 10
       //   }),
       // )
-      .toPromise()
+      .toPromise();
 
-    const response = await this.httpService.post<PineconeSearchResponse>(
-      `https://keyword-search-39d8ed5.svc.us-west1-gcp.pinecone.io/query`,
-      { 
-        vector: encodingResponse.data[0],
-        topK: 5,
-        includeMetadata: true,
-        includeValues: false,
-        namespace: ""
-      },
-      {
-        headers: {
-          "Api-Key": process.env.PINECONE_API_KEY
-        }, 
-      }
-    ).toPromise()
+    const response = await this.httpService
+      .post<PineconeSearchResponse>(
+        `https://keyword-search-39d8ed5.svc.us-west1-gcp.pinecone.io/query`,
+        {
+          vector: encodingResponse.data[0],
+          topK: 5,
+          includeMetadata: true,
+          includeValues: false,
+          namespace: '',
+        },
+        {
+          headers: {
+            'Api-Key': process.env.PINECONE_API_KEY,
+          },
+        },
+      )
+      .toPromise();
 
     // @ts-ignore
     return this.agentService
@@ -94,9 +100,9 @@ export class AgentController {
         [
           {
             type: WebhookResponseRichContextTypes.search,
-            options: response.data.matches
-          }
-        ]
+            options: response.data.matches,
+          },
+        ],
       ])
       .getRes();
   }
@@ -117,8 +123,8 @@ export class AgentController {
     if (!this.chatbotService.validateOpenAICall(userID)) {
       return this.agentService
         .insertText(
-          `Alright! It was great chitchating with you, but let's focus on your Algebra learning. We can catch up after ${(
-            // 300 seconds minus passed seconds
+          `Alright! It was great chitchating with you, but let's focus on your Algebra learning. We can catch up after ${// 300 seconds minus passed seconds
+          (
             (OPEN_AI_CHAT_FREEZE_TIME_IN_SECONDS -
               dayjs(Date.now()).diff(
                 ChatbotService.userDataMap[userID]?.openAIUsage.lastUpdatedAt,
@@ -131,9 +137,10 @@ export class AgentController {
           [
             {
               type: WebhookResponseRichContextTypes.image,
-              rawUrl: 'https://media3.giphy.com/media/QPQ3xlJhqR1BXl89RG/giphy.gif?cid=ecf05e479rr2jjbwwk5l7hcxnbkwj69no9h7fombqm2nfbnn&rid=giphy.gif&ct=g'
-            }
-          ]
+              rawUrl:
+                'https://media3.giphy.com/media/QPQ3xlJhqR1BXl89RG/giphy.gif?cid=ecf05e479rr2jjbwwk5l7hcxnbkwj69no9h7fombqm2nfbnn&rid=giphy.gif&ct=g',
+            },
+          ],
         ])
         .getRes();
     }
@@ -151,7 +158,8 @@ export class AgentController {
     My name is Joi, a female African-American living in Austin, Texas.
     I am a ${userProfile.careerGoal.join(
       ', ',
-    )} with a doctor degree from University of Florida. 
+    )} with a doctor degree from University of Florida.
+    I am firm believer in growth mindset, where I believe people's intelligence can be developed.
     I love ${userProfile.musicGenre.join(
       ', ',
     )} music (${userProfile.favoirteSingers.join(', ')}).
@@ -172,11 +180,11 @@ export class AgentController {
     console.log('history', history);
 
     const response = await this.agentService.openai.createCompletion(
-      'text-davinci-002',
+      process.env.OPENAI_DEFAULT_MODEL,
       {
         prompt: `${background}\n\n${history}You: ${prompt}\nMe: `,
         temperature: 0.5,
-        max_tokens: 64,
+        max_tokens: 128,
         top_p: 1.0,
         frequency_penalty: 0.5,
         presence_penalty: 0.0,
@@ -220,7 +228,7 @@ export class AgentController {
     prompt = `${prompt}\n\n${match[1]}`;
 
     const response = await this.agentService.openai.createCompletion(
-      'text-davinci-002',
+      process.env.OPENAI_DEFAULT_MODEL,
       {
         prompt,
         temperature: 0.7,
@@ -246,18 +254,16 @@ export class AgentController {
   @Post('clearParams')
   async clearParams(@Body() body: WebhookRequest): Promise<WebhookResponse> {
     const tags = body.fulfillmentInfo.tag.split(',');
-    const currentParams = body.sessionInfo.parameters
+    const currentParams = body.sessionInfo.parameters;
 
     const newParams = tags.reduce((obj, tag) => {
       obj[tag.trim()] = null;
       return obj;
-    }, currentParams ?? {})
+    }, currentParams ?? {});
 
-    console.log(newParams)
-    
-    return this.agentService
-      .insertParamInfo(newParams)
-      .getRes();
+    console.log(newParams);
+
+    return this.agentService.insertParamInfo(newParams).getRes();
   }
 
   // it seems that entities in long texts cannot be recognized
@@ -343,13 +349,15 @@ export class AgentController {
 
   @Post('solveProblem')
   async solve(@Body() body: WebhookRequest): Promise<WebhookResponse> {
-    const userID = body.sessionInfo.parameters.userID as string | undefined;
-    ChatbotService.partialResponseEmitter?.next({ 
+    const userID = body.sessionInfo.parameters.userID as string | undefined ?? '123';
+    ChatbotService.partialResponseEmitter?.next({
       data: {
-        response: this.agentService.insertText('Great! Working on it. This can take several seconds').getFullRes(),
-        userID
-      }
-    })
+        response: this.agentService
+          .insertText('Great! Working on it. This can take several seconds')
+          .getFullRes(),
+        userID,
+      },
+    });
 
     const mathSolverService = initService({
       youtubeAPIKey: process.env.YOUTUBE_DATA_API_KEY,
@@ -378,21 +386,172 @@ export class AgentController {
       );
     }
 
-    return this.agentService.getSolveInfo(res.data);
+    return this.agentService.getSolveInfo(userID, res.data);
+  }
+
+  @Post('stepByStep')
+  async stepByStep(@Body() body: WebhookRequest): Promise<WebhookResponse> {
+    const userID = body.sessionInfo.parameters.userID as string | undefined ?? '123';
+    let answer = body.sessionInfo.parameters.user_choice as string | undefined;
+    const hasAltSolutions = body.sessionInfo.parameters.hasAltSolutions as boolean | undefined;
+
+    const currentProblem = ChatbotService.userDataMap[userID].currentProblem;
+    const currentStep = currentProblem.multipleChoiceSteps[currentProblem.step];
+
+    // if no answer is given, we just provide the current step info
+    if (!answer) {
+      return this.agentService
+        .insertRichContent([
+          [
+            {
+              type: WebhookResponseRichContextTypes.description,
+              items: [
+                {
+                  title: 'Step 2',
+                  description: currentStep.text,
+                },
+              ],
+            },
+            ...(currentStep.choices ?? []).map((choice) => {
+              return {
+                type: WebhookResponseRichContextTypes.button,
+                text: choice,
+              };
+            }),
+          ],
+        ])
+        .insertParamInfo({
+          user_choice: 'first',
+        })
+        .getRes();
+    }
+
+    answer = body.text
+
+    const isCorrect =
+      answer.trim() === currentStep.choices[currentStep.answerIdx].trim();
+    let nextStep = currentProblem.step + 1;
+
+    // Final step
+    if (nextStep === currentProblem.maxStep) {
+      return this.agentService
+        .insertText(
+          isCorrect
+            ? "Great job! That's correct!"
+            : `It should be ${
+                currentStep.choices[currentStep.answerIdx]
+              }. But don't worry! Try to rework on the step or ask for help on the discussion wall`,
+        )
+        .insertRichContent([
+          [
+            {
+              type: WebhookResponseRichContextTypes.description,
+              items: [
+                {
+                  title: 'Final Step',
+                  description: currentProblem.multipleChoiceSteps[nextStep].text,
+                },
+              ],
+            },
+            {
+              type: WebhookResponseRichContextTypes.text,
+              text: `Well, that's the end of the problem! You are awesome! Give yourself some applause!`
+            }
+          ],
+        ])
+        .insertParamInfo({
+          stepEvalCompleted: true,
+          user_choice: null
+        })
+        .insertTargetPage(this.chatbotService.getPagePath(
+          FLOW_IDS.problemSolving,
+          hasAltSolutions 
+            ? PAGE_IDS.problemSolving.awaitAltSolution
+            : PAGE_IDS.problemSolving.awaitProblemFollowup,
+        ))
+        .getRes();
+    }
+
+    
+    const response = [];
+
+    while (nextStep < currentProblem.maxStep && !currentProblem.multipleChoiceSteps[nextStep].choices) {
+      response.push({
+        type: WebhookResponseRichContextTypes.description,
+        items: [
+          {
+            title: `Step ${nextStep + 2}`,
+            description: currentProblem.multipleChoiceSteps[nextStep].text,
+          },
+        ],
+      });
+      nextStep += 1;
+    }
+
+    ChatbotService.userDataMap[userID].currentProblem.step = nextStep;
+
+    const next = ChatbotService.userDataMap[userID].currentProblem.multipleChoiceSteps[nextStep]
+
+    const stepEvalCompleted = currentProblem.maxStep === nextStep;
+
+    return this.agentService
+      .insertText(
+        isCorrect
+          ? "Great job! That's correct!"
+          : `It should be ${
+              currentStep.choices[currentStep.answerIdx]
+            }. But don't worry! Try to rework on the step or ask for help on the discussion wall`,
+      )
+      .insertRichContent([
+        [
+          ...response,
+          {
+            type: WebhookResponseRichContextTypes.description,
+            items: [
+              {
+                title: `Step ${nextStep + 2}`,
+                description: `Let's move on. ${next.text}`,
+              },
+            ],
+          },
+          ...(next.choices ?? []).map((choice) => {
+            return {
+              type: WebhookResponseRichContextTypes.button,
+              text: choice,
+            };
+          }),
+        ],
+        
+      ])
+      .insertParamInfo({
+        stepEvalCompleted,
+        user_choice: stepEvalCompleted ? null : body.text,
+      })
+      .getRes();
+  }
+
+  @Post('alternativeSolution')
+  async alternativeSolution(@Body() body: WebhookRequest): Promise<WebhookResponse> {
+    const userID = body.sessionInfo.parameters.userID as string | undefined
+    const altSteps =  ChatbotService.userDataMap[userID].currentProblem.altSolutions
+
+    return this.agentService.getAltSolveInfo(altSteps[0]).getRes()
   }
 
   @Post('recommendResource')
   async recommendResource(
-    @Body() body: WebhookRequest
+    @Body() body: WebhookRequest,
   ): Promise<WebhookResponse> {
     const userID = body.sessionInfo.parameters.userID as string | undefined;
 
-    ChatbotService.partialResponseEmitter?.next({ 
+    ChatbotService.partialResponseEmitter?.next({
       data: {
-        response: this.agentService.insertText('Processing! This can take some time').getFullRes(),
-        userID
-      }
-    })
+        response: this.agentService
+          .insertText('Processing! This can take some time')
+          .getFullRes(),
+        userID,
+      },
+    });
 
     const mathSolverService = initService({
       youtubeAPIKey: process.env.YOUTUBE_DATA_API_KEY,

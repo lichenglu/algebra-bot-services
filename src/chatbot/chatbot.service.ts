@@ -8,6 +8,7 @@ import {
   OPEN_AI_CHAT_FREEZE_TIME_IN_SECONDS,
   OPEN_AI_CHAT_FREEZE_COUNT,
 } from 'src/constants';
+import { SolvedResult } from 'ms_math_solver_api';
 
 @Injectable()
 export class ChatbotService {
@@ -25,6 +26,16 @@ export class ChatbotService {
         lastUpdatedAt: number;
         count: number;
       };
+      currentProblem?: {
+        step: number;
+        maxStep: number;
+        multipleChoiceSteps: {
+          text: string;
+          choices?: string[];
+          answerIdx?: number;
+        }[],
+        altSolutions?: SolvedResult['alternativeSolveSteps']
+      }
       latestSource?: 'openai' | 'dialogflow';
     };
   } = {};
@@ -112,6 +123,16 @@ export class ChatbotService {
       'us-central1',
       process.env.AGENT_ID,
       sessionId,
+    );
+  }
+
+  getPagePath(flowId: string, pageId: string) {
+    return this.sessionsClient.pagePath(
+      process.env.AGENT_PRJECT_ID,
+      'us-central1',
+      process.env.AGENT_ID,
+      flowId,
+      pageId
     );
   }
 

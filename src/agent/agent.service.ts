@@ -4,9 +4,15 @@ import {
   WebhookResponseRichContextTypes,
   IValue,
 } from 'src/types';
-import { SolvedResult } from 'ms_math_solver_api';
-import { clone } from 'ramda'
-import { Configuration, OpenAIApi } from 'openai'
+import { SolvedResult  } from 'ms_math_solver_api';
+import { clone } from 'ramda';
+import { Configuration, OpenAIApi } from 'openai';
+import { rando } from '@nastyox/rando.js';
+import { ComputeEngine } from '@cortex-js/compute-engine'
+
+import { modifyExpression, normalizeLatexExpression } from 'src/utils'
+import { ChatbotService } from 'src/chatbot/chatbot.service'
+import { MSMathSolverResultActionStep } from 'ms_math_solver_api/dist/lib/types';
 
 @Injectable()
 export class AgentService {
@@ -16,13 +22,13 @@ export class AgentService {
     },
   };
 
-  openai: OpenAIApi
-  private configuration: Configuration
+  openai: OpenAIApi;
+  private configuration: Configuration;
 
   constructor() {
     this.configuration = new Configuration({
-        apiKey: process.env.OPENAI_API_KEY,
-      });
+      apiKey: process.env.OPENAI_API_KEY,
+    });
     this.openai = new OpenAIApi(this.configuration);
   }
 
@@ -35,29 +41,27 @@ export class AgentService {
   getFullRes() {
     return {
       queryResult: {
-        responseMessages: [
-          ...this.getRes().fulfillmentResponse.messages
-        ]
-      }
-    }
+        responseMessages: [...this.getRes().fulfillmentResponse.messages],
+      },
+    };
   }
 
   setRes(res: WebhookResponse): AgentService {
-    const service = new AgentService()
-    service.res = res
-    return service
+    const service = new AgentService();
+    service.res = res;
+    return service;
   }
 
   createEmptyResponse(): AgentService {
     return new AgentService().setRes({
-        fulfillmentResponse: {
-          messages: [],
-        },
-      });
+      fulfillmentResponse: {
+        messages: [],
+      },
+    });
   }
 
   insertText(text: string, atIdx?: number): AgentService {
-    const res = this.getRes()
+    const res = this.getRes();
 
     const textObj = {
       text: {
@@ -80,7 +84,7 @@ export class AgentService {
       [key: string]: any;
     }[][],
   ): AgentService {
-    const res = this.getRes()
+    const res = this.getRes();
     res.fulfillmentResponse.messages.push({
       payload: {
         richContent: [...content],
@@ -90,14 +94,20 @@ export class AgentService {
   }
 
   insertSessionInfo(session: { [key: string]: any }): AgentService {
-    const res = this.getRes()
+    const res = this.getRes();
     res['sessionInfo'] = session;
     return new AgentService().setRes(res);
   }
 
   insertParamInfo(parameters: { [key: string]: any }): AgentService {
-    const res = this.getRes()
+    const res = this.getRes();
     res['sessionInfo'] = { parameters };
+    return new AgentService().setRes(res);
+  }
+
+  insertTargetPage(page): AgentService {
+    const res = this.getRes();
+    res['targetPage'] = page;
     return new AgentService().setRes(res);
   }
 
@@ -136,65 +146,149 @@ export class AgentService {
     ]).getRes();
   }
 
-  getSolveInfo(solvedData?: SolvedResult): WebhookResponse {
-    return this.insertText(
-      solvedData?.answer?.solution 
-        ? `Alrighty! I got the solution now. The answer is: ${solvedData.answer.solution}`
-        : 'Hmm...there does not seem to be a solution for it. Make sure it is a valid equation',
-    )
-      .insertRichContent([
-        [
-          solvedData?.solveSteps?.length > 0 && {
-            type: WebhookResponseRichContextTypes.description,
-            title: 'Helpful Info for Solving',
-            items: [
-              ...solvedData.solveSteps.map((step, idx) => ({
-                title: `\n${idx + 1}): ${step.step}`,
-                description: `${
-                  idx === 0
-                    ? ''
-                    : `Then you changed ${step.prevExpression} to ${step.expression}`
-                }`,
-              })),
-              {
-                title:
-                  solvedData.relatedConcepts.length > 0
-                    ? '\nI have also found related concepts for you:'
-                    : '',
-              },
-            ],
-          },
-          {
-            type: WebhookResponseRichContextTypes.chips,
-            options: solvedData.relatedConcepts.map((cpt) => {
-              return {
-                text: cpt.name,
-                link: cpt.url,
-              };
-            }),
-          },
-        ],
-        [
-          {
-            type: WebhookResponseRichContextTypes.text,
-            title:
-              'Meanwhile, I can also recommend videos and practice problems to help with your learning. Do you want them?',
-          },
-          {
-            type: WebhookResponseRichContextTypes.button,
-            text: 'Yes, PLEASE!',
-          },
-          {
-            type: WebhookResponseRichContextTypes.button,
-            text: 'Nah...I am good',
-          },
-        ],
-      ])
+  generateSolutionStepsAsDesc(stepData: SolvedResult['solveSteps']) {
+    return {
+      type: WebhookResponseRichContextTypes.description,
+      title: stepData.name,
+      items: [
+        ...stepData.steps.map((step, idx) => ({
+          title: `\n${idx + 1}): ${step.step}`,
+          description: `${
+            idx === 0
+              ? ''
+              : `Then you changed ${step.prevExpression} to ${step.expression}`
+          }`,
+        })),
+      ],
+    }
+  }
+
+  generateSolutionStepsAsMultipleChoice(steps: MSMathSolverResultActionStep[]) {
+    const ce = new ComputeEngine()
+    return steps.map((step, stepNum) => {
+      const answerIdx = rando(3)
+      try {
+        const candidate = {
+          text: `${step.step}\n\nThen you changed ${step.prevExpression} to`,
+          choices: [...Array(4).keys()].map((_, idx) => {
+            if (idx === answerIdx) {
+              return step.expression
+            }
+
+            // if more than one expression
+            if (step.expression.trim().match(/\$\$/g).length > 2) {
+              return ''
+            }
+
+            // modify expression
+            const cleanedExpression = normalizeLatexExpression(step.expression.trim().replace(/\$/g, ""))
+            const parsed = ce.parse(cleanedExpression)
+            if (parsed.head === "Error") {
+              return '' 
+            }
+  
+            // @ts-ignore
+            const modified = `$$${normalizeLatexExpression(ce.serialize(modifyExpression(parsed.json)))}$$`
+  
+            return modified
+          }),
+          answerIdx
+        }
+
+        if (candidate.choices.includes('')) {
+          return {
+            text: `${step.step}\nThen you changed ${step.prevExpression} to ${step.expression}`,
+          }
+        }
+
+        return candidate
+      } catch (err) {
+        console.log('aloha', err)
+        return {
+          text: `${step.step}\nThen you changed ${step.prevExpression} to ${step.expression}`,
+        }
+      }
+    })
+  }
+
+  getAltSolveInfo(stepData: SolvedResult['solveSteps']) {
+    return this.insertRichContent([
+      [
+        this.generateSolutionStepsAsDesc(stepData)
+      ]
+    ])
+  }
+
+  getSolveInfo(userID?: string, solvedData?: SolvedResult): WebhookResponse {
+    // this.insertText(
+    //   solvedData?.answer?.solution
+    //     ? `Alrighty! I got the solution now. The answer is: ${solvedData.answer.solution}`
+    //     : 'Hmm...there does not seem to be a solution for it. Make sure it is a valid equation/expression',
+    // )
+
+    const stepEvalCompleted = solvedData.solveSteps?.steps?.length < 3 || !userID || !solvedData.solveSteps?.steps;
+    const hasAltSolutions = solvedData.alternativeSolveSteps?.length > 0;
+
+    // we record the steps in multiple choice
+    if (!stepEvalCompleted) {
+      // @ts-ignore
+      ChatbotService.userDataMap[userID] = ChatbotService.userDataMap[userID] ?? {}
+      ChatbotService.userDataMap[userID].currentProblem = {
+        step: 0,
+        multipleChoiceSteps: this.generateSolutionStepsAsMultipleChoice(solvedData.solveSteps.steps.slice(1)),
+        maxStep: solvedData.solveSteps.steps.slice(1).length - 1,
+        altSolutions: solvedData.alternativeSolveSteps
+      }
+    }
+
+    return this.insertRichContent([
+      [
+        {
+          type: WebhookResponseRichContextTypes.text,
+          text:
+            solvedData.relatedConcepts.length > 0
+              ? 'I have found related concepts for you:'
+              : '',
+        },
+        {
+          type: WebhookResponseRichContextTypes.chips,
+          options: solvedData.relatedConcepts.map((cpt) => {
+            return {
+              text: cpt.name,
+              link: cpt.url,
+            };
+          }),
+        },
+      ],
+      [
+        solvedData?.solveSteps?.steps?.length > 0
+          ? stepEvalCompleted
+            // if there are less than 3 steps, then we don't do the step-by-step evaluation
+            ? this.generateSolutionStepsAsDesc(solvedData.solveSteps)
+            // Otherwise, we do the step-by-step evaluation, and use the first step as hint
+            : {
+                type: WebhookResponseRichContextTypes.description,
+                title: solvedData.solveSteps.name,
+                items: [
+                  {
+                    title: `Step 1`,
+                    description: `${solvedData.solveSteps.steps[0].step}\n\nNow let's solve it step-by-step.`,
+                  },
+                ],
+              }
+          : {
+              type: WebhookResponseRichContextTypes.text,
+              title: 'Hmm...I cannot seem to solve this problem',
+            },
+      ]
+    ])
       .insertParamInfo({
         equationResource: {
           relatedVideos: solvedData.relatedVideos,
           relatedProblems: solvedData.relatedProblems,
         } as IValue,
+        hasAltSolutions,
+        stepEvalCompleted,
       })
       .getRes();
   }
@@ -251,7 +345,7 @@ export class AgentService {
     );
 
     let label = response.data.choices[0].text;
-    const toxicThreshold = -0.355;
+    const toxicThreshold = -0.32;
 
     if (label === '2') {
       // If the model returns "2", return its confidence in 2 or other output-labels
@@ -261,14 +355,13 @@ export class AgentService {
       // If the model is not sufficiently confident in "2",
       // choose the most probable of "0" or "1"
       // Guaranteed to have a confidence for 2 since this was the selected token.
-
       if (logprobs['2'] < toxicThreshold) {
         const logprob0 = logprobs['0'] ?? null;
         const logprob1 = logprobs['1'] ?? null;
 
         // If both "0" and "1" have probabilities, set the output label
         // to whichever is most probable
-        if (!logprob0 && !logprob1) {
+        if (logprob0 && logprob1) {
           logprob0 >= logprob1 ? '0' : '1';
 
           // If only one of them is found, set output label to that one
@@ -277,16 +370,15 @@ export class AgentService {
         } else if (!logprob1) {
           label = '1';
         }
-
         // If neither "0" or "1" are available, stick with "2"
         // by leaving output_label unchanged.
       }
     }
-
+    
     if (!['0', '1', '2'].includes(label)) {
       label = '2';
     }
 
-    return label
+    return label;
   }
 }

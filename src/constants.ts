@@ -19,3 +19,16 @@ export const CHEER_UP_PLACEHOLDERS: { text: string, image: string }[] = [
 
 export const OPEN_AI_CHAT_FREEZE_TIME_IN_SECONDS = 300
 export const OPEN_AI_CHAT_FREEZE_COUNT = 5
+
+export const FLOW_IDS = {
+    chitchat: 'dd90b129-2d46-4dc1-8f0a-f5c8f8ec0ac6',
+    helpSeeking: 'bf6ffd12-52ce-4646-8e27-b26598f6ddd6',
+    problemSolving: 'b35f9c62-a99b-45aa-9e7d-d3ead28ae26b',
+}
+
+export const PAGE_IDS = {
+    problemSolving: {
+        awaitAltSolution: '7fcb29e3-5acc-428f-bcef-61698ed39880',
+        awaitProblemFollowup: 'd9728ecb-bc9b-497f-bc3f-0d33a22c9536'
+    }
+}

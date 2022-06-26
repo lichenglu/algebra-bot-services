@@ -7,7 +7,7 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
-import { Observable, Subject, map } from 'rxjs' 
+import { Observable, Subject } from 'rxjs' 
 
 import { ChatbotService } from './chatbot.service';
 import { DialogflowCustomEvents } from 'src/types';

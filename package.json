@@ -21,7 +21,9 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@cortex-js/compute-engine": "^0.6.0",
     "@google-cloud/dialogflow-cx": "^2.15.0",
+    "@nastyox/rando.js": "^2.0.5",
     "@nestjs/axios": "^0.0.8",
     "@nestjs/common": "^8.0.0",
     "@nestjs/config": "^2.0.0",
@@ -29,7 +31,7 @@
     "@nestjs/platform-express": "^8.0.0",
     "@nestjs/serve-static": "^2.2.2",
     "dayjs": "^1.11.2",
-    "mathjs": "^10.5.1",
+    "mathjs": "^10.6.1",
     "mathsteps": "^0.2.0",
     "morgan": "^1.10.0",
     "ms_math_solver_api": "github:lichenglu/ms_math_solver",

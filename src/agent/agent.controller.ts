@@ -36,75 +36,86 @@ export class AgentController {
 
   @Post('searchANVideos')
   async searchANVideos(@Body() body: WebhookRequest): Promise<WebhookResponse> {
-    const userID = body.sessionInfo.parameters.userID as string | undefined;
-    ChatbotService.partialResponseEmitter?.next({
-      data: {
-        response: this.agentService
-          .insertText('Great! Working on it. This can take some time')
-          .getFullRes(),
-        userID,
-      },
-    });
-
-    const prompt = body.text;
-    const HF_API_TOKEN = process.env.HUGGINGFACE_API_KEY;
-    const model = 'flax-sentence-embeddings/all_datasets_v3_mpnet-base';
-
-    const encodingResponse = await this.httpService
-      .post<number[][]>(
-        // https://discuss.huggingface.co/t/can-one-get-an-embeddings-from-an-inference-api-that-computes-sentence-similarity/9433
-        `https://api-inference.huggingface.co/pipeline/feature-extraction/${model}`,
-        {
-          inputs: [prompt],
-          options: {
-            wait_for_model: true,
-          },
+    try {
+      const userID = body.sessionInfo.parameters.userID as string | undefined;
+      ChatbotService.partialResponseEmitter?.next({
+        data: {
+          response: this.agentService
+            .insertText('Great! Working on it. This can take some time')
+            .getFullRes(),
+          userID,
         },
-        {
-          headers: {
-            Authorization: `Bearer ${HF_API_TOKEN}`,
-          },
-        },
-      )
-      // .pipe(
-      //   tap({ error: err => console.log('error: ', err.message) }),
-      //   retry({
-      //     count: 2,
-      //     delay: 1000 * 10
-      //   }),
-      // )
-      .toPromise();
+      });
+  
+      const prompt = body.text;
+      const HF_API_TOKEN = process.env.HUGGINGFACE_API_KEY;
+      // const model = 'flax-sentence-embeddings/all_datasets_v3_mpnet-base';
+      // const huggingfaceInferenceURL = `https://api-inference.huggingface.co/pipeline/feature-extraction/${model}`
+      const model = 'questgen/all-mpnet-base-v2-feature-extraction-pipeline'
+      const huggingfaceInferenceURL = `https://api-inference.huggingface.co/models/${model}`
 
-    const response = await this.httpService
-      .post<PineconeSearchResponse>(
-        `https://keyword-search-39d8ed5.svc.us-west1-gcp.pinecone.io/query`,
-        {
-          vector: encodingResponse.data[0],
-          topK: 5,
-          includeMetadata: true,
-          includeValues: false,
-          namespace: '',
-        },
-        {
-          headers: {
-            'Api-Key': process.env.PINECONE_API_KEY,
-          },
-        },
-      )
-      .toPromise();
-
-    // @ts-ignore
-    return this.agentService
-      .insertText('You might find the following videos in Math Nation useful!')
-      .insertRichContent([
-        [
+  
+      const encodingResponse = await this.httpService
+        .post<number[][]>(
+          // https://discuss.huggingface.co/t/can-one-get-an-embeddings-from-an-inference-api-that-computes-sentence-similarity/9433
+          `https://api-inference.huggingface.co/pipeline/feature-extraction/${model}`,
           {
-            type: WebhookResponseRichContextTypes.search,
-            options: response.data.matches,
+            inputs: [prompt],
+            options: {
+              wait_for_model: true,
+            },
           },
-        ],
-      ])
-      .getRes();
+          {
+            headers: {
+              Authorization: `Bearer ${HF_API_TOKEN}`,
+            },
+          },
+        )
+        // .pipe(
+        //   tap({ error: err => console.log('error: ', err.message) }),
+        //   retry({
+        //     count: 2,
+        //     delay: 1000 * 10
+        //   }),
+        // )
+        .toPromise();
+  
+      const response = await this.httpService
+        .post<PineconeSearchResponse>(
+          `https://keyword-search-39d8ed5.svc.us-west1-gcp.pinecone.io/query`,
+          {
+            vector: encodingResponse.data[0],
+            topK: 5,
+            includeMetadata: true,
+            includeValues: false,
+            namespace: '',
+          },
+          {
+            headers: {
+              'Api-Key': process.env.PINECONE_API_KEY,
+            },
+          },
+        )
+        .toPromise();
+  
+      // @ts-ignore
+      return this.agentService
+        .insertText('You might find the following videos in Math Nation useful!')
+        .insertRichContent([
+          [
+            {
+              type: WebhookResponseRichContextTypes.search,
+              options: response.data.matches,
+            },
+          ],
+        ])
+        .getRes();
+    } catch(err) {
+      console.log(err)
+      return this.agentService
+        .insertText('Oops...something is wrong')
+        .getRes()
+    }
   }
 
   @Post('openAIGenerate')
@@ -153,17 +164,18 @@ export class AgentController {
       favoriteBooks: ['Alice in Wonderland'],
       favoriteSubjects: ['math'],
     };
-
+    
+    // I love ${userProfile.musicGenre.join(
+    //   ', ',
+    // )} music (${userProfile.favoirteSingers.join(', ')}).
+    // I enjoy reading books such as ${userProfile.favoriteBooks.join(', ')}.
+    
     const background = `
     My name is Joi, a female African-American living in Austin, Texas.
     I am a ${userProfile.careerGoal.join(
       ', ',
     )} with a doctor degree from University of Florida.
     I am firm believer in growth mindset, where I believe people's intelligence can be developed.
-    I love ${userProfile.musicGenre.join(
-      ', ',
-    )} music (${userProfile.favoirteSingers.join(', ')}).
-    I enjoy reading books such as ${userProfile.favoriteBooks.join(', ')}.
     Back in school, I'm best at ${userProfile.favoriteSubjects.join(', ')}.
     `.replace(/(\r\n|\n|\r)/gm, ' ');
 
@@ -440,7 +452,7 @@ export class AgentController {
             ? "Great job! That's correct!"
             : `It should be ${
                 currentStep.choices[currentStep.answerIdx]
-              }. But don't worry! Try to rework on the step or ask for help on the discussion wall`,
+              }. But hey! What matters more is that you tried! Now think about why you selected the choice. You can also ask for help on the discussion wall if it is really confusing to you.`,
         )
         .insertRichContent([
           [
@@ -455,7 +467,7 @@ export class AgentController {
             },
             {
               type: WebhookResponseRichContextTypes.text,
-              text: `Well, that's the end of the problem! You are awesome! Give yourself some applause!`
+              text: `Well, that's the end of the problem! You are awesome! Clap for yourself!`
             }
           ],
         ])
@@ -497,7 +509,7 @@ export class AgentController {
     return this.agentService
       .insertText(
         isCorrect
-          ? "Great job! That's correct!"
+          ? "Great job! That's correct! Also think about if is it the step you would conduct to solve the problem."
           : `It should be ${
               currentStep.choices[currentStep.answerIdx]
             }. But don't worry! Try to rework on the step or ask for help on the discussion wall`,

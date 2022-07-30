@@ -195,7 +195,10 @@ export class AgentService {
           answerIdx
         }
 
-        if (candidate.choices.includes('')) {
+        // if no choice can be generated
+        // of if it is the final step
+        // then we just show the answer
+        if (candidate.choices.includes('') || stepNum === (steps.length - 1)) {
           return {
             text: `${step.step}\nThen you changed ${step.prevExpression} to ${step.expression}`,
           }
@@ -233,22 +236,21 @@ export class AgentService {
     if (!stepEvalCompleted) {
       // @ts-ignore
       ChatbotService.userDataMap[userID] = ChatbotService.userDataMap[userID] ?? {}
+      const steps = solvedData.solveSteps.steps.slice(1)
       ChatbotService.userDataMap[userID].currentProblem = {
         step: 0,
-        multipleChoiceSteps: this.generateSolutionStepsAsMultipleChoice(solvedData.solveSteps.steps.slice(1)),
-        maxStep: solvedData.solveSteps.steps.slice(1).length - 1,
+        multipleChoiceSteps: this.generateSolutionStepsAsMultipleChoice(steps),
+        maxStep: steps.length - 1,
         altSolutions: solvedData.alternativeSolveSteps
       }
     }
 
     return this.insertRichContent([
-      [
+      // do not show concept message if no concept is found
+      solvedData.relatedConcepts.length > 0 && [
         {
           type: WebhookResponseRichContextTypes.text,
-          text:
-            solvedData.relatedConcepts.length > 0
-              ? 'I have found related concepts for you:'
-              : '',
+          text: 'I have found related concepts for you:'
         },
         {
           type: WebhookResponseRichContextTypes.chips,

@@ -336,13 +336,13 @@ export class AgentService {
 
   async checkSafetyOf(content: string) {
     const response = await this.openai.createCompletion(
-      'content-filter-alpha',
       {
         prompt: '<|endoftext|>' + content + '\n--\nLabel:',
         temperature: 0,
         max_tokens: 1,
         top_p: 0,
         logprobs: 10,
+        model: 'content-filter-alpha',
       },
     );
 

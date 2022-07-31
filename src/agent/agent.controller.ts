@@ -192,7 +192,6 @@ export class AgentController {
     console.log('history', history);
 
     const response = await this.agentService.openai.createCompletion(
-      process.env.OPENAI_DEFAULT_MODEL,
       {
         prompt: `${background}\n\n${history}You: ${prompt}\nMe: `,
         temperature: 0.5,
@@ -201,6 +200,7 @@ export class AgentController {
         frequency_penalty: 0.5,
         presence_penalty: 0.0,
         stop: 'You:',
+        model: process.env.OPENAI_DEFAULT_MODEL,
       },
     );
 
@@ -240,7 +240,6 @@ export class AgentController {
     prompt = `${prompt}\n\n${match[1]}`;
 
     const response = await this.agentService.openai.createCompletion(
-      process.env.OPENAI_DEFAULT_MODEL,
       {
         prompt,
         temperature: 0.7,
@@ -248,6 +247,7 @@ export class AgentController {
         top_p: 1.0,
         frequency_penalty: 0.0,
         presence_penalty: 0.0,
+        model: process.env.OPENAI_DEFAULT_MODEL,
       },
     );
 

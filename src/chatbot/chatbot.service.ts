@@ -8,7 +8,7 @@ import {
   OPEN_AI_CHAT_FREEZE_TIME_IN_SECONDS,
   OPEN_AI_CHAT_FREEZE_COUNT,
 } from 'src/constants';
-import { SolvedResult } from 'ms_math_solver_api';
+import { SolvedResult } from 'ms-math-solver-api';
 
 @Injectable()
 export class ChatbotService {
@@ -47,6 +47,15 @@ export class ChatbotService {
   constructor() {
     this.sessionsClient = new SessionsClient({
       apiEndpoint: 'us-central1-dialogflow.googleapis.com',
+      // project_id: "perspective-api-332000",
+      // private_key_id: "317421eddc0e91859e9875f56a7914a22f47885f",
+      // private_key: "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQClF+P7DxfdlStF\nVPCM/u4+oiYGwORLutvd4UwPkrsJQbsaygDtpgA4/KBu8xYgiH81kKD30g6ODOty\nWD5rS4atbHRFVjbvVtjw+EUHTZDNaXU/nr13Mt/tHnPY52vvcvGnjeSHu/6knuPa\nK8R/RolSs5trwa371xg2vN467Aa+Hgm0dbqzyPWl+H2fB0midfWsKF9LhMy/Eo7/\nR+6CTeMyRanC2BzZ3QFD4Y8uPo4i08T0tGD6Ekydn+1h+knSd8FMhnbhp5+3PEJc\npgKB49jwfnDP9m62xetrF+JwHe3qlBSswhUWTpiNcGvYcHR8j7k0OtiAXtSTUZOh\nOxt778PxAgMBAAECggEAAhP0QlVwXvXfbcS1qVfkYK65jZC7WYwwtsk/8zCcV6CC\nMbxKuu/4i12N4lhg4Mza1BXW6Zec2Kq5fJik7sSN5rYwS8qk46cFl2KrQOWioSj2\nGSU1FW4Rnfz5HKRv5kegi0ScGqOjkWrS17F0nrg/fZ00NanWAS1/HMl0HZEfkvvP\nO3h6Imybi/x+Jxu3N4xkSMrUtYUUBZ3zBDfTIPFbwLXErpKmtSFHuCrvKa3W7TRH\nxvOTiviFChMKUFnIgG8J0X/VaCo33BEFFWrIP9iOs3FRcSPE6N2S3SrmkxSJ79bo\nqUSfA/jQlVTJERCioCJzM6U7QSBMnYsL70HDKWMIewKBgQDeSud/vhQ+8AiJtmda\nea33LbkbCt0KpVQDbt7fALsBLjLin/nl7JpD9e+e08TFj30+zYja66Ne9piNlwZw\nEWQfDlORegn1KzKSWgheqfTef2oPnbGxyGuNyZOeCy6WIWiQVTxc3I+eVVB7fTYa\nGHKoMsar2yEW8iixgnBnjfkcgwKBgQC+IJai3kX+ugD+VyoG11NVRITdayheoA9Z\nb3HQCcxctSohv3m64pgu/yKziNAYCmF88MlQq1iw5CKdtDzKi9yd15Eha6nOdYIu\nd4pRNPUYyCnHG2KRW/o6I7MISe3WbF9FXDr2or2V+7qcyyn01LtIpYP5XxX+M4Mm\nUUA5bcnbewKBgH4ZbbN4Z1HApodAcubPKdGTHXNquTOFz9/WsBU++9ZSl8kZSRCW\nJHiy9chah0AvArRysdTGYTnIl4eSibNfGjXH0b4vxaBPbfO5oQ/aR69EBi1vnlKk\nx+Z52ASKgVXnA8MEpyZidBI0gWBcCinJfplNnIf22ZGDs3Pm8866qfrzAoGBAIWV\nJAFeplMooNYSq+aOl3BLagaf6YdCckZmNNL0b2+bofSAMakK1939SIZX081wTbqY\n+vkAypnOUDv5jNTKm8ES2lde67mxejvnpXkU+jflOuU36nMy6oa62mkyeDa1geKb\nwJnVEds1OJI9dEceyE9sa2NkWXF3A+iCIdu3taHNAoGAA9xhYxnPUgMLKwVGJMyF\nzx4aTwTIQaO4kBFvTnDoY+sNYuYCfftj3FhxvWJ+5gtcb2ebBaZ/It8zi2QmmBCR\n/SjG/QNFuD+tc21NHLmV/JxuPhP07bsXRHNMx/UxeK78zdJJ/NXGMcU6PTOOwceO\n2Zp1dr+g/CuEjONFVZQzzFA=\n-----END PRIVATE KEY-----\n",
+      // client_email: "dialogflow-client@perspective-api-332000.iam.gserviceaccount.com",
+      // client_id: "117928407313755706116",
+      // auth_uri: "https://accounts.google.com/o/oauth2/auth",
+      // token_uri: "https://oauth2.googleapis.com/token",
+      // auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
+      // client_x509_cert_url: "https://www.googleapis.com/robot/v1/metadata/x509/dialogflow-client%40perspective-api-332000.iam.gserviceaccount.com"
     });
   }
 

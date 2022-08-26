@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 import { HttpService } from '@nestjs/axios';
-import { initService, SolvedResult } from 'ms_math_solver_api';
+import { initService, SolvedResult } from 'ms-math-solver-api';
 import dayjs from 'dayjs';
 import { tap, retry } from 'rxjs/operators';
 

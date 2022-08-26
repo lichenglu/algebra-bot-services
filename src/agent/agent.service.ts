@@ -4,7 +4,7 @@ import {
   WebhookResponseRichContextTypes,
   IValue,
 } from 'src/types';
-import { SolvedResult  } from 'ms_math_solver_api';
+import { SolvedResult  } from 'ms-math-solver-api';
 import { clone } from 'ramda';
 import { Configuration, OpenAIApi } from 'openai';
 import { rando } from '@nastyox/rando.js';
@@ -12,7 +12,7 @@ import { ComputeEngine } from '@cortex-js/compute-engine'
 
 import { modifyExpression, normalizeLatexExpression } from 'src/utils'
 import { ChatbotService } from 'src/chatbot/chatbot.service'
-import { MSMathSolverResultActionStep } from 'ms_math_solver_api/dist/lib/types';
+import { MSMathSolverResultActionStep } from 'ms-math-solver-api/dist/lib/types';
 
 @Injectable()
 export class AgentService {

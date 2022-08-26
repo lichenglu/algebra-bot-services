@@ -6,7 +6,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 
-import { initService } from 'ms_math_solver_api';
+import { initService } from 'ms-math-solver-api';
 
 @Controller('mathSolver')
 export class MathSolverController {

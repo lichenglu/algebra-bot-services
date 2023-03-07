@@ -36,7 +36,7 @@
     "morgan": "^1.10.0",
     "ms-math-solver-api": "^1.1.2",
     "node-fetch": "^3.2.9",
-    "openai": "^3.0.0",
+    "openai": "^3.2.1",
     "pb-util": "^1.0.3",
     "ramda": "^0.28.0",
     "reflect-metadata": "^0.1.13",

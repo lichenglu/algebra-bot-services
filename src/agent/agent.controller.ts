@@ -11,6 +11,7 @@ import { HttpService } from '@nestjs/axios';
 import { initService, SolvedResult } from 'ms-math-solver-api';
 import dayjs from 'dayjs';
 import { tap, retry } from 'rxjs/operators';
+import { ChatCompletionRequestMessage, ChatCompletionRequestMessageRoleEnum } from 'openai'
 
 import {
   WebhookRequest,
@@ -169,14 +170,14 @@ export class AgentController {
     //   ', ',
     // )} music (${userProfile.favoirteSingers.join(', ')}).
     // I enjoy reading books such as ${userProfile.favoriteBooks.join(', ')}.
+    // I am firm believer in growth mindset, where I believe people's intelligence can be developed.
+    // Back in school, I'm best at ${userProfile.favoriteSubjects.join(', ')}.
     
     const background = `
     My name is Joi, a female African-American living in Austin, Texas.
     I am a ${userProfile.careerGoal.join(
       ', ',
     )} with a doctor degree from University of Florida.
-    I am firm believer in growth mindset, where I believe people's intelligence can be developed.
-    Back in school, I'm best at ${userProfile.favoriteSubjects.join(', ')}.
     `.replace(/(\r\n|\n|\r)/gm, ' ');
 
     const history = userID
@@ -185,32 +186,49 @@ export class AgentController {
           ?.filter((history) => history.source === 'openai')
           // last for utterances
           .slice(-4)
-          .map((history) => `You: ${history.prompt}\nMe: ${history.response}`)
-          .join('\n')
-      : '';
+          .map((history) => [
+            {role: ChatCompletionRequestMessageRoleEnum.User, content: history.prompt}, 
+            {role: ChatCompletionRequestMessageRoleEnum.Assistant, content: history.response}
+          ])
+          .flat()
+      : [] as ChatCompletionRequestMessage[];
 
     console.log('history', history);
 
-    const response = await this.agentService.openai.createCompletion(
-      {
-        prompt: `${background}\n\n${history}You: ${prompt}\nMe: `,
-        temperature: 0.5,
-        max_tokens: 128,
-        top_p: 1.0,
-        frequency_penalty: 0.5,
-        presence_penalty: 0.0,
-        stop: 'You:',
-        model: process.env.OPENAI_DEFAULT_MODEL,
-      },
-    );
+    const response = await this.agentService.openai.createChatCompletion({
+      model: 'gpt-3.5-turbo',
+      messages: [
+        {role: ChatCompletionRequestMessageRoleEnum.Assistant, content: background},
+        ...history,
+        {role: ChatCompletionRequestMessageRoleEnum.User, content: prompt},
+      ],
+      max_tokens: 256,
+      temperature: 0.8,
+    })
+
+    // const response = await this.agentService.openai.createCompletion(
+    //   {
+    //     prompt: `${background}\n\n${history}You: ${prompt}\nMe: `,
+    //     temperature: 0.5,
+    //     max_tokens: 128,
+    //     top_p: 1.0,
+    //     frequency_penalty: 0.5,
+    //     presence_penalty: 0.0,
+    //     stop: 'You:',
+    //     model: process.env.OPENAI_DEFAULT_MODEL,
+    //   },
+    // );
 
     response.data.choices.map((c) => console.log(c));
 
-    const generatedText = response.data.choices[0]?.text ?? null;
+    const generatedText = response.data.choices[0]?.message ?? null;
 
-    this.chatbotService.recordOpenAIChat(userID, prompt, generatedText);
+    this.chatbotService.recordOpenAIChat(userID, prompt, generatedText.content);
 
-    return this.agentService.insertText(generatedText).getRes();
+    return this.agentService
+      .insertText(generatedText.content)
+      .insertParamInfo({ msgSource: 'OpenAI' })
+      .getRes();
   }
 
   @Post('openAISummarize')
@@ -259,6 +277,7 @@ export class AgentController {
       .insertText(summary)
       .insertParamInfo({
         summary,
+        msgSource: 'OpenAI',
       })
       .getRes();
   }

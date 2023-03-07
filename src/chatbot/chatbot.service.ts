@@ -95,6 +95,17 @@ export class ChatbotService {
       return false
     }
     
+    if (!ChatbotService.userDataMap[userID]) {
+      ChatbotService.userDataMap[userID] = {
+        sessions: [this.createNewSession(userID)],
+        utteranceHistory: [],
+        openAIUsage: {
+          lastUpdatedAt: Date.now(),
+          count: 0,
+        },
+      };
+    }
+    
     if (
       ChatbotService.userDataMap[userID].openAIUsage.count >=
       OPEN_AI_CHAT_FREEZE_COUNT

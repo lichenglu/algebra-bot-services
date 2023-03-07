@@ -298,6 +298,7 @@ export class AgentService {
   getResourceRecommendation(
     solvedData: Partial<SolvedResult>,
   ): WebhookResponse {
+    console.log(solvedData)
     return this.insertRichContent([
       [
         {
@@ -312,7 +313,7 @@ export class AgentService {
               rawUrl: thumbnail?.thumbnailUrl,
               title: `Video: ${vid.name}`,
               subtitle: vid.description,
-              actionLink: vid.url,
+              actionLink: vid.url ?? vid.webSearchUrl,
             };
           }),
         },
@@ -326,7 +327,7 @@ export class AgentService {
               type: WebhookResponseRichContextTypes.info,
               title: `Pratice: ${prob.title}`,
               subtitle: prob.snippet,
-              actionLink: prob.url,
+              actionLink: prob.url
             };
           }),
         },
